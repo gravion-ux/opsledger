@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "id": "art-001",
+      "path": "artifacts/art-001-recon-transcript.txt",
+      "sha256": "587128b413b6a01e1161b62a880902fcc2fe620589e69aeeb5193ca1f8bf8d04",
+      "size": 178,
+      "collectedAt": "2026-11-02T09:12:00.000Z",
+      "classification": "confidential",
+      "note": "initial recon transcript"
+    },
+    {
+      "id": "art-002",
+      "path": "artifacts/art-002-finding-notes.md",
+      "sha256": "0512c1528926bb8c2387763f9cd63edeb48e5d5d3fa6fe135071fc3540666fab",
+      "size": 293,
+      "collectedAt": "2026-11-02T11:40:00.000Z",
+      "classification": "internal",
+      "note": "weak SSH banner on the edge host"
+    }
+  ]
+}

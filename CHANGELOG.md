@@ -1,0 +1,30 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] - 2026-11-10
+
+### Added
+
+- Hash-chained engagement ledger: every event carries the SHA-256 of its own canonical serialization
+  chained onto its predecessor's hash, starting from a fixed genesis hash.
+- Canonical JSON serializer with recursive key sorting, so a hash does not depend on the order in
+  which keys were written.
+- Ledger document with `version`, `engagement`, `createdAt`, `events`, a `state` block recording the
+  event count and the head hash, and an optional `signature`.
+- Event types `action`, `finding`, `note`, `artifact` and `phase`.
+- Artifact registration: files are copied into the engagement directory, hashed with SHA-256, and
+  described in a manifest with an id, path, size, collection timestamp, classification and note.
+- Classification levels `public`, `internal`, `confidential` and `restricted`.
+- Chain verification that reports the precise first broken link, and separately detects a truncated
+  tail through the recorded event count and head hash.
+- Optional HMAC-SHA256 ledger signature that covers the ledger and the artifact manifest, with the
+  key read only from an environment variable.
+- Markdown, HTML and JSON report emitters.
+- `init`, `artifact add`, `event add`, `verify`, `report` and `demo` CLI subcommands with exit codes
+  0, 1 and 2.
+
+[0.1.0]: https://github.com/gravion-ux/opsledger/releases/tag/v0.1.0

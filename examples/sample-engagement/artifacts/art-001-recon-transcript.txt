@@ -1,0 +1,6 @@
+engagement: ACME-2026-11
+collected: 2026-11-02T09:12:00.000Z
+
+host discovery: 10.10.10.5
+service scan: 22/tcp open, 80/tcp open, 443/tcp open
+banner grab: OpenSSH 8.2p1 (Ubuntu)

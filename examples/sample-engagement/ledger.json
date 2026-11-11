@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "engagement": "ACME-2026-11",
+  "createdAt": "2026-11-02T09:00:00.000Z",
+  "events": [
+    {
+      "index": 0,
+      "type": "phase",
+      "summary": "engagement scope agreed with the client",
+      "actor": "lead",
+      "ref": null,
+      "timestamp": "2026-11-02T09:00:00.000Z",
+      "eventHash": "73d7c3e64ec7765418a7229e98372ef8224ef07f8fc775c118ace016dba2173d"
+    },
+    {
+      "index": 1,
+      "type": "action",
+      "summary": "port scan of the edge host",
+      "actor": "operator",
+      "ref": "art-001",
+      "timestamp": "2026-11-02T09:15:00.000Z",
+      "eventHash": "b5445c7d253cf8ef985a0292fdaafb6a14e25d5e9ceb228225046c15b14add4d"
+    },
+    {
+      "index": 2,
+      "type": "finding",
+      "summary": "weak SSH banner observed",
+      "actor": "operator",
+      "ref": "art-002",
+      "timestamp": "2026-11-02T11:45:00.000Z",
+      "eventHash": "418389effab0572880952bcec8c672030b9f5bc6f6a46f26d577f8fb8fcf948f"
+    },
+    {
+      "index": 3,
+      "type": "note",
+      "summary": "client notified, remediation ticket RA-4471 raised",
+      "actor": "lead",
+      "ref": null,
+      "timestamp": "2026-11-03T08:20:00.000Z",
+      "eventHash": "0c1cfecc2de7d84f93475d039f10d3bd97fee749ea1c45759befe6bc75cdf8f8"
+    }
+  ],
+  "state": {
+    "eventCount": 4,
+    "headHash": "0c1cfecc2de7d84f93475d039f10d3bd97fee749ea1c45759befe6bc75cdf8f8"
+  },
+  "signature": null
+}
