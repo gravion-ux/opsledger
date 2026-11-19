@@ -188,3 +188,55 @@ test('the genesis hash is the predecessor of the first event', () => {
   assert.equal(ledger.events[0].eventHash.length, 64);
   assert.notEqual(ledger.events[0].eventHash, GENESIS_HASH);
 });
+
+test('a ledger whose state block was removed is rejected', () => {
+  const ledger = clone(ledgerWith());
+  delete ledger.state;
+  const result = verifyChain(ledger, { manifest: MANIFEST });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /event count/);
+});
+
+test('a truncated ledger whose state block was removed is still detected', () => {
+  const ledger = clone(ledgerWith());
+  ledger.events.pop();
+  delete ledger.state;
+  const result = verifyChain(ledger, { manifest: MANIFEST });
+  assert.equal(result.ok, false);
+});
+
+test('a ledger whose head hash was removed is rejected', () => {
+  const ledger = clone(ledgerWith());
+  delete ledger.state.headHash;
+  const result = verifyChain(ledger, { manifest: MANIFEST });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /head hash/);
+});
+
+test('an event with an added __proto__ property breaks the chain', () => {
+  const ledger = clone(ledgerWith());
+  Object.defineProperty(ledger.events[0], '__proto__', {
+    value: { tampered: true },
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+  const result = verifyChain(ledger, { manifest: MANIFEST });
+  assert.equal(result.ok, false);
+  assert.equal(result.brokenIndex, 0);
+});
+
+test('a signed ledger rejects an added top-level field', () => {
+  const ledger = signLedger(ledgerWith(), KEY, MANIFEST);
+  const tampered = { ...ledger, operator: 'mallory' };
+  const result = verifyChain(tampered, { key: KEY, manifest: MANIFEST });
+  assert.equal(result.signature.valid, false);
+  assert.equal(result.ok, false);
+});
+
+test('a signed ledger rejects a changed top-level field', () => {
+  const ledger = signLedger(ledgerWith(), KEY, MANIFEST);
+  const tampered = { ...ledger, engagement: 'OTHER' };
+  const result = verifyChain(tampered, { key: KEY, manifest: MANIFEST });
+  assert.equal(result.signature.valid, false);
+});

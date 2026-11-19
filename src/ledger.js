@@ -98,21 +98,22 @@ export function appendEvent(ledger, event) {
 /**
  * Build the canonical payload the ledger signature covers.
  *
- * The payload includes the artifact manifest, so registering an artifact after
- * the ledger was signed invalidates the signature until the ledger is signed
- * again. That is the intended behaviour: evidence added behind the operator's
- * back should break the signature.
+ * Every field of the ledger document is covered, except the signature field
+ * itself, so content added to the document after it was signed invalidates the
+ * signature until the ledger is signed again. That is the intended behaviour:
+ * evidence added behind the operator's back should break the signature.
+ *
+ * The payload includes the artifact manifest for the same reason: registering
+ * an artifact after the ledger was signed invalidates the signature.
  * @param {object} ledger The ledger.
  * @param {object} manifest The artifact manifest.
  * @returns {string} The canonical JSON payload.
  */
 export function ledgerSignaturePayload(ledger, manifest) {
+  const payload = { ...ledger };
+  delete payload.signature;
   return canonicalJson({
-    version: ledger.version,
-    engagement: ledger.engagement,
-    createdAt: ledger.createdAt,
-    events: ledger.events,
-    state: ledger.state,
+    ...payload,
     manifest: manifest || { version: 1, artifacts: [] },
   });
 }

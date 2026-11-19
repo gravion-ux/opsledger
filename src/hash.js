@@ -21,6 +21,12 @@ export function sha256Hex(data) {
 
 /**
  * Recursively sort object keys so a value serializes the same way every time.
+ *
+ * The accumulator is a null-prototype object on purpose. On a normal object a
+ * property named `__proto__` would be assigned through the inherited setter,
+ * which silently removes it from the canonical form; two events that differ
+ * only in such a property would then share a hash and a tampered ledger would
+ * still verify.
  * @param {*} value The value to normalize.
  * @returns {*} The normalized value.
  */
@@ -29,7 +35,7 @@ function canonicalize(value) {
     return value.map(canonicalize);
   }
   if (value && typeof value === 'object' && !(value instanceof Date)) {
-    const sorted = {};
+    const sorted = Object.create(null);
     for (const key of Object.keys(value).sort()) {
       if (value[key] === undefined) {
         continue;

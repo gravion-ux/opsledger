@@ -2,8 +2,24 @@
  * opsledger — chain verification and tamper detection.
  * @module opsledger/verify
  */
+import { timingSafeEqual } from 'node:crypto';
+
 import { computeEventHash, hmacHex } from './hash.js';
 import { eventPreviousHash, ledgerHeadHash, ledgerSignaturePayload } from './ledger.js';
+
+/**
+ * Compare two strings without leaking their contents through timing.
+ * @param {string} left The first value.
+ * @param {string} right The second value.
+ * @returns {boolean} True when the two values are identical.
+ */
+function safeEqual(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+  const leftBytes = Buffer.from(left, 'utf8');
+  const rightBytes = Buffer.from(right, 'utf8');
+  if (leftBytes.length !== rightBytes.length) return false;
+  return timingSafeEqual(leftBytes, rightBytes);
+}
 
 /**
  * Check the ledger signature.
@@ -25,7 +41,7 @@ export function verifySignature(ledger, key, manifest) {
     return { present: true, supplied: false, valid: null };
   }
   const expected = hmacHex(key, ledgerSignaturePayload(ledger, manifest));
-  return { present: true, supplied: true, valid: expected === ledger.signature };
+  return { present: true, supplied: true, valid: safeEqual(expected, ledger.signature) };
 }
 
 /**
@@ -86,15 +102,25 @@ export function verifyChain(ledger, options = {}) {
 
   // The chain is internally consistent, but it does not hold the number of
   // events the ledger records. This is what catches a truncated tail, and a
-  // tail that was removed and whose links were recomputed.
-  if (Number.isInteger(state.eventCount) && state.eventCount !== events.length) {
+  // tail that was removed and whose links were recomputed. The recorded count
+  // and head hash must be present: without them the truncation check could be
+  // switched off simply by deleting the state block.
+  if (!Number.isInteger(state.eventCount)) {
+    result.reason = 'the ledger does not record an event count';
+    return finish();
+  }
+  if (state.eventCount !== events.length) {
     result.brokenIndex = Math.min(state.eventCount, events.length);
     result.reason = `the ledger records ${state.eventCount} event(s) but holds ${events.length}`;
     return finish();
   }
 
   const head = ledgerHeadHash(ledger);
-  if (state.headHash && state.headHash !== head) {
+  if (typeof state.headHash !== 'string' || state.headHash.length === 0) {
+    result.reason = 'the ledger does not record a head hash';
+    return finish();
+  }
+  if (state.headHash !== head) {
     result.brokenIndex = events.length === 0 ? 0 : events.length - 1;
     result.expectedHash = head;
     result.actualHash = state.headHash;

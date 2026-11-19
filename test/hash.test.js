@@ -51,6 +51,23 @@ test('canonicalJson emits no whitespace', () => {
   assert.equal(canonicalJson({ a: 1, b: [1, 2] }), '{"a":1,"b":[1,2]}');
 });
 
+test('canonicalJson preserves a property named __proto__', () => {
+  const parsed = JSON.parse('{"__proto__":{"a":1},"kind":"finding"}');
+  assert.equal(canonicalJson(parsed), '{"__proto__":{"a":1},"kind":"finding"}');
+});
+
+test('computeEventHash changes when a __proto__ property is added', () => {
+  const event = { index: 0, type: 'action', summary: 'x' };
+  const tampered = { ...event };
+  Object.defineProperty(tampered, '__proto__', {
+    value: { tampered: true },
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+  assert.notEqual(computeEventHash(event, GENESIS_HASH), computeEventHash(tampered, GENESIS_HASH));
+});
+
 test('computeEventHash ignores the recorded event hash', () => {
   const event = { index: 0, type: 'action', summary: 'x' };
   const first = computeEventHash(event, GENESIS_HASH);
