@@ -3,6 +3,7 @@
  * @module opsledger/artifacts
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { sha256Hex } from './hash.js';
@@ -140,6 +141,10 @@ export function registerArtifact(manifest, sourcePath, options = {}) {
 
 /**
  * Check that every registered artifact is still present and unchanged.
+ *
+ * The files are read one after another. Use {@link verifyArtifactsAsync} when
+ * many artifacts have to be checked: opening a file costs far more than
+ * hashing its contents, and reading the files in parallel overlaps that cost.
  * @param {string} dir The engagement directory.
  * @param {object} manifest The manifest.
  * @returns {object} The verification result.
@@ -168,5 +173,57 @@ export function verifyArtifacts(dir, manifest) {
       });
     }
   }
+  return { ok: mismatches.length === 0, checked: artifacts.length, mismatches };
+}
+
+/**
+ * Check that every registered artifact is still present and unchanged, reading
+ * the files in parallel.
+ *
+ * The result is the same as {@link verifyArtifacts}, including the order of
+ * the reported mismatches. The files are opened concurrently, which matters
+ * because opening a file costs much more than reading and hashing it, and
+ * those opens no longer wait for one another.
+ * @param {string} dir The engagement directory.
+ * @param {object} manifest The manifest.
+ * @returns {Promise<object>} The verification result.
+ */
+export async function verifyArtifactsAsync(dir, manifest) {
+  const artifacts = (manifest && manifest.artifacts) || [];
+  const results = await Promise.all(
+    artifacts.map(async (artifact) => {
+      const target = path.join(dir, artifact.path);
+      let bytes;
+      try {
+        bytes = await readFile(target);
+      } catch (error) {
+        if (error && error.code === 'ENOENT') {
+          return {
+            id: artifact.id,
+            reason: 'the artifact file is missing',
+            expected: artifact.sha256,
+            actual: null,
+          };
+        }
+        return {
+          id: artifact.id,
+          reason: `the artifact file could not be read: ${error.message}`,
+          expected: artifact.sha256,
+          actual: null,
+        };
+      }
+      const actual = sha256Hex(bytes);
+      if (actual === artifact.sha256) {
+        return null;
+      }
+      return {
+        id: artifact.id,
+        reason: 'the artifact content no longer matches its recorded hash',
+        expected: artifact.sha256,
+        actual,
+      };
+    }),
+  );
+  const mismatches = results.filter((entry) => entry !== null);
   return { ok: mismatches.length === 0, checked: artifacts.length, mismatches };
 }

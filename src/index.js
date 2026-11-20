@@ -7,6 +7,7 @@ export {
   EVENT_TYPES,
   LEDGER_VERSION,
   appendEvent,
+  appendEvents,
   createLedger,
   eventPreviousHash,
   ledgerHeadHash,
@@ -23,6 +24,7 @@ export {
   registerArtifact,
   saveManifest,
   verifyArtifacts,
+  verifyArtifactsAsync,
 } from './artifacts.js';
 export { verifyChain, verifySignature } from './verify.js';
 export { escapeCell, escapeHtml, toHtml, toJson, toMarkdown } from './report.js';

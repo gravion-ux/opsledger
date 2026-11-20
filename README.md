@@ -280,6 +280,60 @@ const result = verifyChain(signed, { key: process.env.OPSLEDGER_KEY });
 console.log(result.ok, result.brokenIndex);
 ```
 
+Recording many events? Use `appendEvents`, which appends a whole list in one pass:
+
+```js
+import { appendEvents, createLedger } from 'opsledger';
+
+const ledger = appendEvents(
+  createLedger({ engagement: 'ACME-2026-11', createdAt: new Date().toISOString() }),
+  [
+    { type: 'phase', summary: 'reconnaissance' },
+    { type: 'action', summary: 'port scan of the edge host', actor: 'operator' },
+  ],
+);
+```
+
+The result is identical to appending the events one at a time — the same records, the same hashes and
+the same chain — but the event list is copied once instead of once per event.
+
+Checking many artifacts? Use `verifyArtifactsAsync`, which reads the files in parallel and returns
+the same result as `verifyArtifacts`:
+
+```js
+import { verifyArtifactsAsync } from 'opsledger';
+
+const artifacts = await verifyArtifactsAsync(dir, manifest);
+console.log(artifacts.ok, artifacts.mismatches);
+```
+
+## Performance
+
+The paths that matter are the ones a real engagement takes: building the ledger, verifying it,
+rendering the report and checking the artifacts. `bench/benchmark.mjs` times all of them against a
+built-in corpus, so no files of its own are needed.
+
+```bash
+node bench/benchmark.mjs
+```
+
+Each workload is timed seven times and the fastest run is reported, because the slowest run is
+usually the one that caught a stray background process rather than the one that measured the code.
+Compare two revisions on the same machine and the same Node build; the absolute numbers are not
+comparable between machines.
+
+Three changes were made after profiling, and each one was measured by running the two revisions in
+alternating rounds and keeping the fastest run of each:
+
+- Recording events one at a time copied the whole event list every time, so the cost grew with the
+  square of the number of events. `appendEvents` copies it once. With 8000 events, building a ledger
+  is **5.3 times faster**.
+- Opening an artifact file costs far more than hashing it. The `verify` command now reads the files
+  in parallel. With 200 artifact files of 64 KiB each, checking every artifact is **4.0 times
+  faster**.
+- Digests are computed with the one-shot `crypto.hash` function when the running Node build has it.
+  With 8000 events, verifying the chain is **1.15 times faster**.
+
 ## Development
 
 ```bash

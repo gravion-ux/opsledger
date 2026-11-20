@@ -2,7 +2,18 @@
  * opsledger — hash helpers for the engagement evidence chain.
  * @module opsledger/hash
  */
-import { createHash, createHmac } from 'node:crypto';
+import crypto, { createHash, createHmac } from 'node:crypto';
+
+/**
+ * The one-shot digest function, when the running Node build has one.
+ *
+ * `crypto.hash` computes a digest without building a hash object, which is
+ * measurably faster for the small payloads this tool hashes. It arrived in
+ * Node 20.12 and 21.7, so it is looked up rather than imported by name:
+ * importing a name a build does not have would stop the module from loading.
+ * @type {Function|null}
+ */
+const oneShotHash = typeof crypto.hash === 'function' ? crypto.hash : null;
 
 /**
  * The hash the first event of a ledger chains from.
@@ -16,6 +27,9 @@ export const GENESIS_HASH = '0'.repeat(64);
  * @returns {string} The hexadecimal digest.
  */
 export function sha256Hex(data) {
+  if (oneShotHash) {
+    return oneShotHash('sha256', data, 'hex');
+  }
   return createHash('sha256').update(data).digest('hex');
 }
 

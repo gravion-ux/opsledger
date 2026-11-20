@@ -62,10 +62,57 @@ export function ledgerHeadHash(ledger) {
 }
 
 /**
+ * Append several events to the ledger in one pass.
+ *
+ * Appending one event at a time copies the whole event list every time, so
+ * building a ledger of n events that way copies the list n times over. This
+ * function copies it once and then adds every event, which keeps the cost
+ * proportional to the number of events rather than to its square.
+ *
+ * The result is identical to calling {@link appendEvent} once per event: the
+ * same records, the same hashes and the same chain. The ledger that was passed
+ * in is not modified.
+ * @param {object} ledger The ledger to append to.
+ * @param {object[]} events The events to append, in order.
+ * @returns {object} The new ledger.
+ */
+export function appendEvents(ledger, events) {
+  const current = ledger.events || [];
+  const next = current.slice();
+  let previousHash = eventPreviousHash(ledger, current.length);
+
+  for (const event of events) {
+    const index = next.length;
+    const record = {
+      index,
+      type: event.type,
+      summary: event.summary,
+      actor: event.actor === undefined ? null : event.actor,
+      ref: event.ref === undefined ? null : event.ref,
+      timestamp: event.timestamp || new Date().toISOString(),
+    };
+    const eventHash = computeEventHash(record, previousHash);
+    next.push({ ...record, eventHash });
+    previousHash = eventHash;
+  }
+
+  const headHash = next.length === 0 ? GENESIS_HASH : next[next.length - 1].eventHash;
+  return {
+    ...ledger,
+    events: next,
+    state: { eventCount: next.length, headHash },
+  };
+}
+
+/**
  * Append an event to the ledger.
  *
  * The ledger is not modified: a new ledger is returned, which keeps the
  * append operation easy to reason about and easy to test.
+ *
+ * When many events are recorded one after another, use {@link appendEvents}
+ * instead: it produces the same ledger without copying the event list once
+ * per event.
  * @param {object} ledger The ledger to append to.
  * @param {object} event The event to append.
  * @param {string} event.type The event type.
@@ -76,23 +123,7 @@ export function ledgerHeadHash(ledger) {
  * @returns {object} The new ledger.
  */
 export function appendEvent(ledger, event) {
-  const events = ledger.events || [];
-  const index = events.length;
-  const previousHash = eventPreviousHash(ledger, index);
-  const record = {
-    index,
-    type: event.type,
-    summary: event.summary,
-    actor: event.actor === undefined ? null : event.actor,
-    ref: event.ref === undefined ? null : event.ref,
-    timestamp: event.timestamp || new Date().toISOString(),
-  };
-  const eventHash = computeEventHash(record, previousHash);
-  return {
-    ...ledger,
-    events: [...events, { ...record, eventHash }],
-    state: { eventCount: index + 1, headHash: eventHash },
-  };
+  return appendEvents(ledger, [event]);
 }
 
 /**

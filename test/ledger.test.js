@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { GENESIS_HASH } from '../src/hash.js';
 import {
   appendEvent,
+  appendEvents,
   createLedger,
   eventPreviousHash,
   ledgerHeadHash,
@@ -126,4 +127,76 @@ test('the signature payload covers the event state', () => {
   const payload = ledgerSignaturePayload(ledger, { version: 1, artifacts: [] });
   assert.ok(payload.includes('eventCount'));
   assert.ok(payload.includes(ledger.events[0].eventHash));
+});
+
+test('appending several events at once gives the same ledger as appending them one by one', () => {
+  const events = [
+    { type: 'phase', summary: 'reconnaissance', timestamp: '2026-11-05T09:00:00Z' },
+    { type: 'action', summary: 'port scan', actor: 'operator', timestamp: '2026-11-05T09:01:00Z' },
+    { type: 'finding', summary: 'weak banner', actor: 'operator', ref: 'art-001', timestamp: '2026-11-05T09:02:00Z' },
+  ];
+  const oneByOne = ledgerWith(...events);
+  const allAtOnce = appendEvents(
+    createLedger({ engagement: 'TEST', createdAt: '2026-11-05T09:00:00Z' }),
+    events,
+  );
+  assert.deepEqual(allAtOnce, oneByOne);
+});
+
+test('appending several events at once does not mutate the ledger it was given', () => {
+  const first = ledgerWith({ type: 'action', summary: 'first' });
+  const second = appendEvents(first, [
+    { type: 'action', summary: 'second' },
+    { type: 'action', summary: 'third' },
+  ]);
+  assert.equal(first.events.length, 1);
+  assert.equal(first.state.eventCount, 1);
+  assert.equal(second.events.length, 3);
+  assert.equal(second.state.eventCount, 3);
+});
+
+test('appending several events at once does not mutate the event list it was given', () => {
+  const events = [{ type: 'action', summary: 'first' }, { type: 'action', summary: 'second' }];
+  const snapshot = JSON.stringify(events);
+  appendEvents(createLedger({ engagement: 'TEST', createdAt: '2026-11-05T09:00:00Z' }), events);
+  assert.equal(JSON.stringify(events), snapshot);
+});
+
+test('appending an empty list leaves the events alone', () => {
+  const ledger = ledgerWith({ type: 'action', summary: 'first' });
+  const result = appendEvents(ledger, []);
+  assert.deepEqual(result.events, ledger.events);
+  assert.equal(result.state.eventCount, ledger.events.length);
+  assert.equal(result.state.headHash, ledger.state.headHash);
+});
+
+test('appending several events at once agrees with appending them one by one over random cases', () => {
+  // A seeded generator, so a failure can be reproduced exactly.
+  let seed = 20261119;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const types = ['action', 'finding', 'note', 'artifact', 'phase'];
+
+  for (let round = 0; round < 200; round += 1) {
+    const count = 1 + Math.floor(random() * 6);
+    const events = [];
+    for (let index = 0; index < count; index += 1) {
+      const event = {
+        type: types[Math.floor(random() * types.length)],
+        summary: `event ${index} of round ${round}`,
+        timestamp: '2026-11-05T09:00:00Z',
+      };
+      if (random() < 0.5) event.actor = 'operator';
+      if (random() < 0.5) event.ref = `art-${String(index).padStart(3, '0')}`;
+      events.push(event);
+    }
+    const oneByOne = ledgerWith(...events);
+    const allAtOnce = appendEvents(
+      createLedger({ engagement: 'TEST', createdAt: '2026-11-05T09:00:00Z' }),
+      events,
+    );
+    assert.deepEqual(allAtOnce, oneByOne, `round ${round} disagreed`);
+  }
 });

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { emptyManifest, loadManifest, registerArtifact, saveManifest, verifyArtifacts } from './artifacts.js';
+import { emptyManifest, loadManifest, registerArtifact, saveManifest, verifyArtifactsAsync } from './artifacts.js';
 import { EVENT_TYPES, appendEvent, createLedger, signLedger } from './ledger.js';
 import { toHtml, toJson, toMarkdown } from './report.js';
 import { verifyChain } from './verify.js';
@@ -279,11 +279,14 @@ export function cmdEventAdd(flags, out) {
 
 /**
  * Verify the chain and the artifacts of an engagement.
+ *
+ * The artifact files are read in parallel, because opening a file costs far
+ * more than hashing it and the opens no longer wait for one another.
  * @param {object} flags The parsed flags.
  * @param {*} out The output stream.
- * @returns {number} The exit code.
+ * @returns {Promise<number>} The exit code.
  */
-export function cmdVerify(flags, out) {
+export async function cmdVerify(flags, out) {
   const dir = flags.dir;
   if (!dir || dir === true) {
     out.write('opsledger: verify needs --dir ENGAGEMENT\n');
@@ -302,7 +305,7 @@ export function cmdVerify(flags, out) {
 
   const manifest = loadManifest(dir);
   const result = verifyChain(ledger, { key, manifest });
-  const artifacts = verifyArtifacts(dir, manifest);
+  const artifacts = await verifyArtifactsAsync(dir, manifest);
 
   out.write(`opsledger: ${result.checked} event(s) checked\n`);
   if (result.ok) {
@@ -390,9 +393,9 @@ export function cmdReport(flags, out) {
  * Build a throwaway engagement and show what the tool does.
  * @param {object} flags The parsed flags.
  * @param {*} out The output stream.
- * @returns {number} The exit code.
+ * @returns {Promise<number>} The exit code.
  */
-export function cmdDemo(flags, out) {
+export async function cmdDemo(flags, out) {
   const root = mkdtempSync(path.join(tmpdir(), 'opsledger-demo-'));
   const dir = path.join(root, 'CONTOSO-2026-11');
   mkdirSync(dir, { recursive: true });
@@ -424,7 +427,7 @@ export function cmdDemo(flags, out) {
   cmdEventAdd({ dir, type: 'finding', summary: 'weak SSH banner observed', actor: 'operator', ref: 'art-002' }, out);
 
   out.write('\n> opsledger verify --dir ENGAGEMENT\n');
-  const verified = cmdVerify({ dir }, out);
+  const verified = await cmdVerify({ dir }, out);
 
   out.write('\n> opsledger report --format md\n');
   cmdReport({ dir, format: 'md' }, out);
@@ -439,11 +442,14 @@ export function cmdDemo(flags, out) {
 
 /**
  * Run the command line interface.
+ *
+ * The function is asynchronous because the verify command reads the artifact
+ * files in parallel.
  * @param {string[]} argv The arguments, without the node executable and script.
  * @param {*} out The output stream.
- * @returns {number} The exit code.
+ * @returns {Promise<number>} The exit code.
  */
-export function main(argv, out = process.stdout) {
+export async function main(argv, out = process.stdout) {
   const [command, ...rest] = argv;
 
   if (!command || command === 'help' || command === '--help' || command === '-h') {
@@ -489,5 +495,13 @@ export function main(argv, out = process.stdout) {
 // is a drive-letter path, so a `file://` comparison never matches and the
 // command line silently does nothing.
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  process.exitCode = main(process.argv.slice(2));
+  main(process.argv.slice(2)).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error) => {
+      process.stderr.write(`opsledger: ${error.message}\n`);
+      process.exitCode = EXIT_FAILURE;
+    },
+  );
 }

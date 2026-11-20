@@ -13,6 +13,7 @@ import {
   registerArtifact,
   saveManifest,
   verifyArtifacts,
+  verifyArtifactsAsync,
 } from '../src/artifacts.js';
 import { sha256Hex } from '../src/hash.js';
 
@@ -182,4 +183,62 @@ test('a removed artifact is detected', () => {
   const result = verifyArtifacts(dir, manifest);
   assert.equal(result.ok, false);
   assert.match(result.mismatches[0].reason, /missing/);
+});
+
+test('the parallel check agrees with the sequential check on unchanged artifacts', async () => {
+  const { root, dir } = workspace();
+  const source = sourceFile(root, 'transcript.txt', 'hello');
+  const manifest = registerArtifact(emptyManifest(), source, { dir });
+  const sequential = verifyArtifacts(dir, manifest);
+  const parallel = await verifyArtifactsAsync(dir, manifest);
+  assert.deepEqual(parallel, sequential);
+  assert.equal(parallel.ok, true);
+});
+
+test('the parallel check agrees with the sequential check on a changed artifact', async () => {
+  const { root, dir } = workspace();
+  const source = sourceFile(root, 'transcript.txt', 'hello');
+  const manifest = registerArtifact(emptyManifest(), source, { dir });
+  writeFileSync(path.join(dir, manifest.artifacts[0].path), 'tampered', 'utf8');
+  const sequential = verifyArtifacts(dir, manifest);
+  const parallel = await verifyArtifactsAsync(dir, manifest);
+  assert.deepEqual(parallel, sequential);
+  assert.equal(parallel.ok, false);
+  assert.equal(parallel.mismatches.length, 1);
+  assert.match(parallel.mismatches[0].reason, /content/);
+});
+
+test('the parallel check agrees with the sequential check on a removed artifact', async () => {
+  const { root, dir } = workspace();
+  const source = sourceFile(root, 'transcript.txt', 'hello');
+  const manifest = registerArtifact(emptyManifest(), source, { dir });
+  unlinkSync(path.join(dir, manifest.artifacts[0].path));
+  const sequential = verifyArtifacts(dir, manifest);
+  const parallel = await verifyArtifactsAsync(dir, manifest);
+  assert.deepEqual(parallel, sequential);
+  assert.equal(parallel.ok, false);
+  assert.match(parallel.mismatches[0].reason, /missing/);
+});
+
+test('the parallel check reports several mismatches in manifest order', async () => {
+  const { root, dir } = workspace();
+  const first = sourceFile(root, 'one.txt', 'one');
+  const second = sourceFile(root, 'two.txt', 'two');
+  const third = sourceFile(root, 'three.txt', 'three');
+  let manifest = registerArtifact(emptyManifest(), first, { dir });
+  manifest = registerArtifact(manifest, second, { dir });
+  manifest = registerArtifact(manifest, third, { dir });
+  writeFileSync(path.join(dir, manifest.artifacts[0].path), 'tampered', 'utf8');
+  unlinkSync(path.join(dir, manifest.artifacts[2].path));
+  const sequential = verifyArtifacts(dir, manifest);
+  const parallel = await verifyArtifactsAsync(dir, manifest);
+  assert.deepEqual(parallel, sequential);
+  assert.equal(parallel.mismatches.length, 2);
+  assert.deepEqual(parallel.mismatches.map((entry) => entry.id), ['art-001', 'art-003']);
+});
+
+test('the parallel check on an empty manifest succeeds', async () => {
+  const { dir } = workspace();
+  const result = await verifyArtifactsAsync(dir, emptyManifest());
+  assert.deepEqual(result, { ok: true, checked: 0, mismatches: [] });
 });

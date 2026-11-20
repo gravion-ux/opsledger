@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 
 import {
@@ -94,4 +95,22 @@ test('hmacHex matches the known RFC test vector', () => {
 
 test('hmacHex depends on the key', () => {
   assert.notEqual(hmacHex('key', 'data'), hmacHex('other', 'data'));
+});
+
+test('sha256Hex agrees with the streaming digest for a string', () => {
+  assert.equal(sha256Hex('abc'), createHash('sha256').update('abc').digest('hex'));
+});
+
+test('sha256Hex agrees with the streaming digest for a buffer', () => {
+  const bytes = Buffer.from([0, 1, 2, 253, 254, 255]);
+  assert.equal(sha256Hex(bytes), createHash('sha256').update(bytes).digest('hex'));
+});
+
+test('sha256Hex agrees with the streaming digest for non-ascii text', () => {
+  const text = 'h\u00e9llo \u2014 \u4e16\u754c \ud83c\udf0d';
+  assert.equal(sha256Hex(text), createHash('sha256').update(text).digest('hex'));
+});
+
+test('sha256Hex agrees with the streaming digest for an empty input', () => {
+  assert.equal(sha256Hex(''), createHash('sha256').update('').digest('hex'));
 });
