@@ -1,5 +1,9 @@
 # opsledger
 
+![Demo](docs/demo.png)
+
+*Creating a tamper-evident evidence entry.*
+
 Tamper-evident, locally verifiable evidence ledger for red-team engagements.
 
 [![CI](https://github.com/gravion-ux/opsledger/actions/workflows/ci.yml/badge.svg)](https://github.com/gravion-ux/opsledger/actions/workflows/ci.yml)
