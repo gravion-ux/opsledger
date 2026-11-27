@@ -63,6 +63,10 @@ export function parseFlags(args) {
       continue;
     }
     const body = arg.slice(2);
+    if (!body) {
+      positional.push(arg);
+      continue;
+    }
     const equals = body.indexOf('=');
     if (equals >= 0) {
       flags[body.slice(0, equals)] = body.slice(equals + 1);

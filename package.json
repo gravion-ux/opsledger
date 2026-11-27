@@ -7,7 +7,7 @@
   "main": "src/index.js",
   "bin": { "opsledger": "src/cli.js" },
   "scripts": {
-    "test": "node --test test/hash.test.js test/ledger.test.js test/artifacts.test.js test/verify.test.js test/report.test.js test/cli.test.js",
+    "test": "node --test test/hash.test.js test/ledger.test.js test/artifacts.test.js test/verify.test.js test/report.test.js test/cli.test.js test/cli-edges.test.js",
     "demo": "node src/cli.js demo"
   },
   "keywords": ["security", "red-team", "evidence", "audit-trail", "hash-chain", "digital-forensics", "pentest", "chain-of-custody"],
